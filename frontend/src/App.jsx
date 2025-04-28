@@ -16,11 +16,17 @@ export default function App() {
   };
 
   // Use custom hook to poll job status
-  const { status, result } = useJobStatus(jobId, import.meta.env.VITE_API_URL);
+  const { status, result, transcript } = useJobStatus(jobId, import.meta.env.VITE_API_URL);
 
   useEffect(() => {
     if (!jobId) return;
     log(`Status update: ${status}`);
+
+    console.log(transcript)
+    if (transcript) {
+      log(`[BACKEND][TRANSCRIPTION]: ${transcript.trim()}`);
+      setGuess(transcript.trim()); 
+    }
     if (status === 'completed') {
       log('Job completed, updating guess');
       setGuess(JSON.stringify(result));
@@ -28,7 +34,7 @@ export default function App() {
     if (status === 'failed') {
       log('Job failed');
     }
-  }, [status, jobId, result]);
+  }, [status, jobId, result, transcript ]);
 
   const handleStart = async () => {
     try {

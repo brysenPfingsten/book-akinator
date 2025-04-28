@@ -1,17 +1,20 @@
 # backend/app/tasks.py
-from celeryconfig import celery_app
+import time
+
+from app.celeryconfig import celery_app
 from celery import chain
 import os
 from uuid import uuid4
-from workers.stt_worker import transcribe_audio_file
-from workers.llm_worker import query_llm_for_book
-from workers.irc_worker import fetch_book_via_irc
-from workers.convert_worker import extract_text_from_ebook
-from workers.tts_worker import synthesize_speech
+from app.workers.stt_worker import transcribe_audio_file
+from app.workers.llm_worker import query_llm_for_book
+from app.workers.irc_worker import fetch_book_via_irc
+from app.workers.convert_worker import extract_text_from_ebook
+from app.workers.tts_worker import synthesize_speech
+from app.job_store import *
 from fastapi import HTTPException
 
 # Directory where uploaded audio files are stored
-UPLOAD_DIR = os.getenv('UPLOAD_DIR', '/data/uploads')
+UPLOAD_DIR = '/data/audio/uploads'
 DATA_DIR = os.getenv('DATA_DIR', '/data')
 
 @celery_app.task(bind=True)
@@ -31,11 +34,13 @@ def process_audio_job(self, job_id: str, filename: str):
     result = workflow.apply_async()
     return {'workflow_id': result.id, 'job_id': job_id}
 
+
 @celery_app.task(bind=True)
 def transcribe_audio(self, job_id: str, filepath: str) -> dict:
-    """Run speech-to-text on the uploaded audio file."""
     transcript = transcribe_audio_file(filepath)
-    return {'job_id': job_id, 'transcript': transcript}
+    update_job(job_id, {'transcription': transcript})
+    return {'job_id': job_id, 'transcription': transcript}
+
 
 @celery_app.task(bind=True)
 def guess_book(self, previous_result: dict) -> dict:

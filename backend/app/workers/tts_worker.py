@@ -1,2 +1,2 @@
-def synthesize_speech():
+def synthesize_speech(path, dir):
     return None

@@ -1,29 +1,21 @@
 version: "3.8"
 
 services:
-  # Development frontend: Vite’s dev server with hot-module replacement
-  frontend:
-    image: node:18-slim
-    working_dir: /app
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules   # keep container’s node_modules
-    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+  redis:
+    image: redis:7-alpine
     ports:
-      - "3001:5173"
-    environment:
-      - VITE_API_URL=http://backend:8000
-    depends_on:
-      - backend
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
-  # Development backend: Uvicorn in reload mode
   backend:
     image: python:3.11-slim
     working_dir: /usr/src/app
     volumes:
       - ./backend:/usr/src/app
-      - /usr/src/app/.venv  # if you prefer a virtualenv
-    command: sh -c "pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+      - books_data:/data/books
+      - audio_data:/data/audio
+    command: sh -c "pip install -r requirements.txt && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
     env_file:
@@ -34,13 +26,17 @@ services:
     depends_on:
       - redis
 
-  # Celery worker (you can also add --loglevel=DEBUG)
   worker:
-    image: python:3.11-slim
+    build:
+      context: ./backend
     working_dir: /usr/src/app
     volumes:
       - ./backend:/usr/src/app
+      - books_data:/data/books
+      - audio_data:/data/audio
     command: sh -c "pip install -r requirements.txt && celery -A app.tasks worker --loglevel=info"
+    env_file:
+      - .env
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
@@ -48,7 +44,21 @@ services:
       - redis
       - backend
 
-  redis:
-    image: redis:7-alpine
+  frontend:
+    image: node:18-slim
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     ports:
-      - "6379:6379"
+      - "3001:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  redis_data:
+  books_data:
+  audio_data:

@@ -1,7 +1,6 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # Redis for Celery broker & result backend
   redis:
     image: redis:7-alpine
     ports:
@@ -9,7 +8,6 @@ services:
     volumes:
       - redis_data:/data
 
-  # FastAPI backend
   backend:
     build:
       context: ./backend
@@ -27,11 +25,12 @@ services:
     depends_on:
       - redis
 
-  # Celery worker (runs your tasks)
   worker:
     build:
       context: ./backend
     command: celery -A app.tasks worker --loglevel=info
+    env_file:
+      - .env
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
@@ -42,7 +41,6 @@ services:
       - redis
       - backend
 
-  # React frontend served via Nginx
   frontend:
     build:
       context: ./frontend

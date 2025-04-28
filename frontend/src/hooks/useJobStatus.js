@@ -10,6 +10,7 @@ import { useState, useEffect, useRef } from 'react';
 export function useJobStatus(jobId, apiUrl, intervalMs = 2000) {
   const [status, setStatus] = useState('idle');
   const [result, setResult] = useState(null);
+  const [transcript, setTranscript] = useState('');
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -20,13 +21,16 @@ export function useJobStatus(jobId, apiUrl, intervalMs = 2000) {
       try {
         const res = await fetch(`${apiUrl}/status/${jobId}`);
         const data = await res.json();
+        console.log(data);
         setStatus(data.status);
+
+        if (data.transcription && data.transcription !== transcript ) { setTranscript(data.transcription); }
         if (data.status === 'completed') {
           setResult(data.result);
           clearInterval(timerRef.current);
         } else if (data.status === 'failed') {
           clearInterval(timerRef.current);
-        }
+        } 
       } catch (err) {
         console.error('Polling error:', err);
         clearInterval(timerRef.current);
@@ -41,5 +45,5 @@ export function useJobStatus(jobId, apiUrl, intervalMs = 2000) {
     return () => clearInterval(timerRef.current);
   }, [jobId, apiUrl, intervalMs]);
 
-  return { status, result };
+  return { status, result, transcript };
 }

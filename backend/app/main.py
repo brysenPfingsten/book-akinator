@@ -5,8 +5,9 @@ from celery.result import AsyncResult
 from uuid import uuid4
 import os
 
-from celeryconfig import celery_app
-from tasks import process_audio_job
+from app.celeryconfig import celery_app
+from app.tasks import process_audio_job
+from app.job_store import *
 
 # FastAPI app
 app = FastAPI()
@@ -17,11 +18,8 @@ app.add_middleware(
   allow_headers=["*"],
 )
 
-# In-memory job store for mapping job_id -> task info
-jobs = {}
-
 # Directories (ensure these match your Docker volumes)
-UPLOAD_DIR = os.getenv('UPLOAD_DIR', '/data/uploads')
+UPLOAD_DIR = '/data/audio/uploads' # os.getenv('UPLOAD_DIR', '/data/audio/uploads')
 # Create upload dir if it doesn't exist
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -45,11 +43,12 @@ async def recognize_audio(file: UploadFile = File(...)):
     async_result = process_audio_job.delay(job_id, filename)
 
     # 4. Store job metadata
-    jobs[job_id] = {
+    save_job(job_id, {
         'status': 'pending',
         'task_id': async_result.id,
-        'result': None
-    }
+        'result': None,
+        'transcription': None
+    })
 
     return JSONResponse({
         'job_id': job_id,
@@ -58,20 +57,20 @@ async def recognize_audio(file: UploadFile = File(...)):
 
 @app.get("/status/{job_id}")
 async def get_status(job_id: str):
-    job = jobs.get(job_id)
+    job = get_job(job_id)
+    print(f"[DEBUG] {job}")
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # 1. Fetch latest task state from Celery
     task_id = job['task_id']
     async_res = AsyncResult(task_id, app=celery_app)
     state = async_res.state
 
-    # 2. If finished, attach result
     if state == 'SUCCESS':
-        result = async_res.result or {}
+        if not job.get('result'):
+            result = async_res.result or {}
+            job['result'] = result
         job['status'] = 'completed'
-        job['result'] = result
     elif state in ('PENDING', 'STARTED', 'RETRY'):
         job['status'] = 'pending'
     else:
@@ -79,9 +78,15 @@ async def get_status(job_id: str):
 
     response = {
         'job_id': job_id,
-        'status': job['status'],
+        'status': job['status']
     }
-    if job['result']:
+
+    if 'result' in job and job['result']:
         response['result'] = job['result']
 
+    if 'transcription' in job and job['transcription']:
+        response['transcription'] = job['transcription']
+
+    print(f"[DEBUG] /status/{job_id} response: {response}")
     return JSONResponse(response)
+
