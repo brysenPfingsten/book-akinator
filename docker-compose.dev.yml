@@ -3,14 +3,14 @@ version: "3.8"
 services:
   # Development frontend: Vite’s dev server with hot-module replacement
   frontend:
-    image: node:18-alpine
+    image: node:18-slim
     working_dir: /app
     volumes:
       - ./frontend:/app
       - /app/node_modules   # keep container’s node_modules
     command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     ports:
-      - "3000:3000"
+      - "3001:5173"
     environment:
       - VITE_API_URL=http://backend:8000
     depends_on:

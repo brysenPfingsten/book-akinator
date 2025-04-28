@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from celery.result import AsyncResult
 from uuid import uuid4
 import os
@@ -9,6 +10,12 @@ from tasks import process_audio_job
 
 # FastAPI app
 app = FastAPI()
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=["*"],
+  allow_methods=["*"],
+  allow_headers=["*"],
+)
 
 # In-memory job store for mapping job_id -> task info
 jobs = {}

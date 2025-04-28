@@ -1,5 +1,5 @@
 # 1. Build stage
-FROM node:18-alpine AS builder
+FROM node:18-slim AS builder
 WORKDIR /app
 
 # Copy package files & install deps

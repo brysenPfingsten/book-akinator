@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
+import { useJobStatus } from './hooks/useJobStatus';
 
 export default function App() {
   const [isRecording, setIsRecording] = useState(false);
+  const [jobId, setJobId] = useState(null);
   const [guess, setGuess] = useState('');
   const [logs, setLogs] = useState([]);
   const [showLogs, setShowLogs] = useState(false);
@@ -13,35 +15,27 @@ export default function App() {
     setLogs((prev) => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
   };
 
+  // Use custom hook to poll job status
+  const { status, result } = useJobStatus(jobId, import.meta.env.VITE_API_URL);
+
+  useEffect(() => {
+    if (!jobId) return;
+    log(`Status update: ${status}`);
+    if (status === 'completed') {
+      log('Job completed, updating guess');
+      setGuess(JSON.stringify(result));
+    }
+    if (status === 'failed') {
+      log('Job failed');
+    }
+  }, [status, jobId, result]);
+
   const handleStart = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream);
-
       mediaRecorderRef.current.ondataavailable = (e) => {
         audioChunksRef.current.push(e.data);
-      };
-
-      mediaRecorderRef.current.onstop = async () => {
-        log('Recording stopped, preparing audio payload');
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        audioChunksRef.current = [];
-
-        log('Sending audio to backend');
-        const form = new FormData();
-        form.append('file', blob, 'recording.webm');
-
-        try {
-          const res = await fetch(import.meta.env.VITE_API_URL + '/recognize', {
-            method: 'POST',
-            body: form,
-          });
-          const data = await res.json();
-          log(`Received response: ${JSON.stringify(data)}`);
-          setGuess(data.book || 'No guess');
-        } catch (err) {
-          log(`Error fetching guess: ${err.message}`);
-        }
       };
 
       mediaRecorderRef.current.start();
@@ -53,10 +47,32 @@ export default function App() {
   };
 
   const handleStop = () => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
+    if (!mediaRecorderRef.current) return;
+
+    mediaRecorderRef.current.onstop = async () => {
+      log('Recording stopped, preparing payload');
+      const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      audioChunksRef.current = [];
+
+      log('Sending audio to backend');
+      const form = new FormData();
+      form.append('file', blob, 'recording.webm');
+
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/recognize`, {
+          method: 'POST',
+          body: form,
+        });
+        const { job_id } = await res.json();
+        log(`Job created: ${job_id}`);
+        setJobId(job_id);
+      } catch (err) {
+        log(`Error creating job: ${err.message}`);
+      }
+    };
+
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
   };
 
   return (
@@ -71,7 +87,7 @@ export default function App() {
       </button>
 
       <div className="guess">
-        <h2 className="guess-title">LLM Guess:</h2>
+        <h2 className="guess-title">LLM Guess / Result:</h2>
         <div className="guess-box">{guess || '–'}</div>
       </div>
 
