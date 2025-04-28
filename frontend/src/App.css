@@ -1,42 +1,108 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/* frontend/src/App.css */
+
+/* Reset margins and set dark background for full viewport */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #1a202c;
+}
+
+/* Center everything and space out vertically */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  width: 100%;
+  padding: 2rem 1rem;
+  background-color: #1a202c;
+  color: #edf2f7;
+}
+
+/* Title near the top, larger font */
+.app-title {
+  font-size: 2.5rem;
+  margin: 1rem 0 2rem;
+  text-align: center;
+  color: #edf2f7;
+}
+
+/* Buttons with top margin for spacing */
+.button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.375rem;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.2s;
+}
+
+/* Specific button variants */
+.button--start {
+  background-color: #48bb78;
+  color: #1a202c;
+}
+.button--start:hover {
+  background-color: #38a169;
+}
+.button--stop {
+  background-color: #f56565;
+  color: #1a202c;
+}
+.button--stop:hover {
+  background-color: #e53e3e;
+}
+
+/* LLM guess section centered, with spacing */
+.guess {
+  margin-top: 2rem;
+  width: 100%;
+  max-width: 600px;
   text-align: center;
 }
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+.guess-title {
+  font-size: 1.75rem;
+  color: #a0aec0;
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.guess-box {
+  margin: 1rem auto;
+  padding: 1rem;
+  border: 1px solid #4a5568;
+  background-color: #2d3748;
+  border-radius: 0.375rem;
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+  color: #edf2f7;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+/* Toggle logs button centered */
+.toggle-logs {
+  margin-top: 2rem;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #63b3ed;
 }
 
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+/* Logs panel with centered layout and width control */
+.logs-panel {
+  margin: 1rem auto;
+  padding: 1rem;
+  width: 100%;
+  max-width: 600px;
+  height: 12rem;
+  overflow-y: auto;
+  background-color: #2d3748;
+  color: #edf2f7;
+  font-family: monospace;
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
 }
