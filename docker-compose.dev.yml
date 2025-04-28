@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  # Development frontend: Vite’s dev server with hot-module replacement
+  frontend:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules   # keep container’s node_modules
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://backend:8000
+    depends_on:
+      - backend
+
+  # Development backend: Uvicorn in reload mode
+  backend:
+    image: python:3.11-slim
+    working_dir: /usr/src/app
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/.venv  # if you prefer a virtualenv
+    command: sh -c "pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "8000:8000"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      - redis
+
+  # Celery worker (you can also add --loglevel=DEBUG)
+  worker:
+    image: python:3.11-slim
+    working_dir: /usr/src/app
+    volumes:
+      - ./backend:/usr/src/app
+    command: sh -c "pip install -r requirements.txt && celery -A app.tasks worker --loglevel=info"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      - redis
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
