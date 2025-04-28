@@ -5,14 +5,20 @@ from openai import OpenAI, Audio
 
 def convert_webm_to_wav(input_path: str) -> str:
     output_path = input_path.replace(".webm", ".wav")
-    command = [
-        "ffmpeg", "-i", input_path,
-        "-ar", "16000",  # 16kHz, recommended for Whisper
-        "-ac", "1",      # mono channel
-        output_path
-    ]
-    subprocess.run(command, check=True)
-    return output_path
+    if os.path.exists(output_path):
+        os.remove(output_path)
+    try:
+        subprocess.run(
+            ['ffmpeg', '-i', input_path, '-ar', '16000', '-ac', '1', output_path],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE
+        )
+        return output_path
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr.decode('utf-8') if e.stderr else str(e)
+        print(f"FFmpeg conversion failed: {error_msg}")
+        raise
 
 
 

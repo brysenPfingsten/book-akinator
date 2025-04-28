@@ -14,7 +14,8 @@ def query_llm_for_book(history: list) -> dict:
     :param history: List of dicts with 'role' and 'content'.
     :return: Structured dict with either 'confident' guess or 'need_clarification'.
     """
-
+    print("HISTORY")
+    print(history)
     # System prompt preserved from your original style
     system_prompt = """
 You are an assistant helping to identify books based on user descriptions and clarifications.

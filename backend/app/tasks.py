@@ -20,31 +20,51 @@ DATA_DIR = os.getenv('DATA_DIR', '/data')
 @celery_app.task(bind=True)
 def process_audio_job(self, job_id: str, filename: str):
     """
-    Orchestrator task: transcribe -> guess -> download -> convert -> speak
+    Phase 1: Transcribe and make first guess.
     """
     filepath = os.path.join(UPLOAD_DIR, filename)
-    # Build pipeline
     workflow = chain(
         transcribe_audio.s(job_id, filepath),
-        guess_book.s(),
-        download_book.s(),
+        guess_book.s()
+    )
+    result = workflow.apply_async()
+
+    return {'workflow_id': result.id, 'job_id': job_id}
+
+
+@celery_app.task(bind=True)
+def continue_book_pipeline(self, job_id: str):
+    """
+    Phase 2: After confident guess, download and speak the book.
+    """
+    workflow = chain(
+        download_book.s({'job_id': job_id}),
         convert_book.s(),
         speak_text.s()
     )
     result = workflow.apply_async()
+
     return {'workflow_id': result.id, 'job_id': job_id}
+
 
 
 @celery_app.task(bind=True)
 def transcribe_audio(self, job_id: str, filepath: str) -> dict:
     """Run speech-to-text on the uploaded audio file."""
     transcript = transcribe_audio_file(filepath)
-    # Initialize the conversation history with the user's initial description
+
+    # Load the existing job so we can preserve existing history
+    job = get_job(job_id)
+    history = job.get('history', [])
+
+    # Add the user's transcript to history
+    history.append({"role": "user", "content": transcript})
+
+    # Update the job
     update_job(job_id, {
         'transcription': transcript,
-        'history': [
-            {"role": "user", "content": transcript}
-        ]
+        'history': history,
+        'phase': 'transcribed'
     })
     return {'job_id': job_id, 'transcription': transcript}
 
@@ -59,12 +79,20 @@ def guess_book(self, previous_result: dict) -> dict:
     history = job.get('history', [])
 
     # Now query LLM using full conversation history
-    book_info = query_llm_for_book(history)
+    guess = query_llm_for_book(history)
 
-    # Update job with the guess
-    update_job(job_id, {'book_info': book_info})
+    # Append the assistant's guess to history
+    history.append({"role": "assistant", "content": guess})
 
-    return {'job_id': job_id, 'book_info': book_info}
+    # Update the job
+    update_job(job_id, {
+        'guess': guess,
+        'history': history,
+        'phase': 'guessed'
+    })
+
+    return {'job_id': job_id, 'guess': guess}
+
 
 
 @celery_app.task(bind=True)
