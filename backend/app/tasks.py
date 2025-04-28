@@ -37,18 +37,35 @@ def process_audio_job(self, job_id: str, filename: str):
 
 @celery_app.task(bind=True)
 def transcribe_audio(self, job_id: str, filepath: str) -> dict:
+    """Run speech-to-text on the uploaded audio file."""
     transcript = transcribe_audio_file(filepath)
-    update_job(job_id, {'transcription': transcript})
+    # Initialize the conversation history with the user's initial description
+    update_job(job_id, {
+        'transcription': transcript,
+        'history': [
+            {"role": "user", "content": transcript}
+        ]
+    })
     return {'job_id': job_id, 'transcription': transcript}
 
 
 @celery_app.task(bind=True)
 def guess_book(self, previous_result: dict) -> dict:
-    """Call LLM to guess the book title from transcript."""
+    """Call LLM to guess the book title from history."""
     job_id = previous_result.get('job_id')
-    transcript = previous_result.get('transcript')
-    book_info = query_llm_for_book(transcript)
+
+    # Load full job
+    job = get_job(job_id)
+    history = job.get('history', [])
+
+    # Now query LLM using full conversation history
+    book_info = query_llm_for_book(history)
+
+    # Update job with the guess
+    update_job(job_id, {'book_info': book_info})
+
     return {'job_id': job_id, 'book_info': book_info}
+
 
 @celery_app.task(bind=True)
 def download_book(self, previous_result: dict) -> dict:

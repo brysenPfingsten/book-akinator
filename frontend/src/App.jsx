@@ -24,8 +24,7 @@ export default function App() {
 
     console.log(transcript)
     if (transcript) {
-      log(`[BACKEND][TRANSCRIPTION]: ${transcript.trim()}`);
-      setGuess(transcript.trim()); 
+      log(`[STT]: ${transcript.trim()}`);
     }
     if (status === 'completed') {
       log('Job completed, updating guess');
