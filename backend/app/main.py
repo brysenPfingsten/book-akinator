@@ -62,12 +62,12 @@ async def save_and_process_audio(file: UploadFile, job_id: str = None, is_clarif
 
     if is_clarification:
         update_job(job_id, {
-            'status': 'pending',
+            'phase': 'pending',
             'task_id': async_result.id,
         })
     else:
         save_job(job_id, {
-            'status': 'pending',
+            'phase': 'pending',
             'task_id': async_result.id,
             'result': None,
             'transcription': None,

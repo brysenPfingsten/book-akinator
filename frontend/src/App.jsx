@@ -5,6 +5,7 @@ import { useJobStatus } from './hooks/useJobStatus';
 export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [isUnsure, setIsUnsure] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [jobId, setJobId] = useState(null);
   const [pullTrigger, setPullTrigger] = useState(0);
   const [guess, setGuess] = useState('');
@@ -34,6 +35,10 @@ export default function App() {
       break;
     }
   };
+
+  const download_book = (query) => {
+
+  }
   
   // Use custom hook to poll job status
   const { phase, result, transcript } = useJobStatus(jobId, import.meta.env.VITE_API_URL, 2000, pullTrigger);
@@ -46,9 +51,11 @@ export default function App() {
     }
     if (phase === 'guessed') {
       log('Job completed, updating guess');
+      setIsProcessing(false);
       process_guess(result);
     }
     if (phase === 'failed') {
+      setIsProcessing(false);
       log('Job failed');
     }
   }, [phase, jobId, result, transcript]);
@@ -73,6 +80,7 @@ export default function App() {
   
   const stopRecording = async () => {
     if (!mediaRecorderRef.current) return;
+    setIsProcessing(true);
   
     mediaRecorderRef.current.onstop = async () => {
       log('Recording stopped, preparing payload');
@@ -126,6 +134,7 @@ export default function App() {
     
     <button
     onClick={handleRecordButtonClick}
+    disabled={isProcessing}
     className={`button ${isRecording ? 'button--stop' : 'button--start'}`}
     >
     {isRecording 
