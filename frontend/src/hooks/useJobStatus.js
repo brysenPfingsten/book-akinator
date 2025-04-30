@@ -7,14 +7,21 @@ import { useState, useEffect, useRef } from 'react';
 * @param {number} intervalMs - Polling interval in milliseconds.
 * @returns {{ phase: string, result: object|null, transcript: string }}
 */
-export function useJobStatus(jobId, apiUrl, intervalMs = 2000) {
+export function useJobStatus(jobId, apiUrl, intervalMs = 2000, trigger = 0) {
     const [phase, setPhase] = useState('idle');
     const [result, setResult] = useState(null);
     const [transcript, setTranscript] = useState('');
+    const lastTranscriptRef = useRef('');
     const timerRef = useRef(null);
     
     useEffect(() => {
-        if (!jobId) return;
+        if (!jobId) {
+            clearInterval(timerRef.current);
+            setPhase('idle'); setResult(null); setTranscript('');
+            lastTranscriptRef.current = '';
+            return;
+          }
+
         setPhase('processing');
         
         const poll = async () => {
@@ -27,7 +34,8 @@ export function useJobStatus(jobId, apiUrl, intervalMs = 2000) {
                     setPhase(data.phase);
                 }
                 
-                if (data.transcription && data.transcription !== transcript) {
+                if (data.transcription && data.transcription !== lastTranscriptRef.current) {
+                    lastTranscriptRef.current = data.transcription;
                     setTranscript(data.transcription);
                 }
                 
@@ -43,11 +51,12 @@ export function useJobStatus(jobId, apiUrl, intervalMs = 2000) {
             }
         };
         
-        timerRef.current = setInterval(poll, intervalMs);
         poll();
+        timerRef.current = setInterval(poll, intervalMs);
+        
         
         return () => clearInterval(timerRef.current);
-    }, [jobId, apiUrl, intervalMs, transcript]);
+    }, [jobId, apiUrl, intervalMs, trigger]);
     
     return { phase, result, transcript };
 }

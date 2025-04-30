@@ -6,6 +6,7 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [isUnsure, setIsUnsure] = useState(false);
   const [jobId, setJobId] = useState(null);
+  const [pullTrigger, setPullTrigger] = useState(0);
   const [guess, setGuess] = useState('');
   const [logs, setLogs] = useState([]);
   const [showLogs, setShowLogs] = useState(false);
@@ -35,7 +36,7 @@ export default function App() {
   };
   
   // Use custom hook to poll job status
-  const { phase, result, transcript } = useJobStatus(jobId, import.meta.env.VITE_API_URL);
+  const { phase, result, transcript } = useJobStatus(jobId, import.meta.env.VITE_API_URL, 2000, pullTrigger);
   
   useEffect(() => {
     if (!jobId) return;
@@ -97,6 +98,7 @@ export default function App() {
         const newJobId = (data.job_id || data.jobId || jobId).toLowerCase();
         setJobId(newJobId);
         log(`Tracking job: ${newJobId}`);
+        setPullTrigger((n) => n + 1);
   
         if (isUnsure) {
           log(`Clarification processing started...`);

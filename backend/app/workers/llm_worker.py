@@ -36,9 +36,10 @@ Your task:
 }
 
 Important rules:
-- Respond ONLY in JSON format.
+- Respond ONLY in JSON format. That means no markdown fences or other formatting.
 - No extra commentary, no free text.
 - Ask **only one** clarifying question at a time if unsure.
+- Your question should never be is the book you're thinking of X by A? Only ask for clues until you are confident.
 - If confident, do NOT ask a question, just output the structured guess.
     """.strip()
 

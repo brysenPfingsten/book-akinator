@@ -60,13 +60,19 @@ async def save_and_process_audio(file: UploadFile, job_id: str = None, is_clarif
     # Enqueue processing
     async_result = process_audio_job.delay(job_id, filename)
 
-    # Store job metadata
-    save_job(job_id, {
-        'status': 'pending',
-        'task_id': async_result.id,
-        'result': None,
-        'transcription': None
-    })
+    if is_clarification:
+        update_job(job_id, {
+            'status': 'pending',
+            'task_id': async_result.id,
+        })
+    else:
+        save_job(job_id, {
+            'status': 'pending',
+            'task_id': async_result.id,
+            'result': None,
+            'transcription': None,
+            'history': [],
+        })
 
     return job_id
 

@@ -71,27 +71,36 @@ def transcribe_audio(self, job_id: str, filepath: str) -> dict:
 
 @celery_app.task(bind=True)
 def guess_book(self, previous_result: dict) -> dict:
-    """Call LLM to guess the book title from history."""
-    job_id = previous_result.get('job_id')
+    job_id = previous_result["job_id"]
+    job    = get_job(job_id)
+    history = job.get("history", [])
 
-    # Load full job
-    job = get_job(job_id)
-    history = job.get('history', [])
+    # This returns a dict like {"status":"need_clarification","question": "..."}
+    guess_obj = query_llm_for_book(history)
 
-    # Now query LLM using full conversation history
-    guess = query_llm_for_book(history)
+    # Turn that into a string for the assistant message
+    if guess_obj.get("status") == "need_clarification":
+        assistant_content = guess_obj["question"]
+    elif guess_obj.get("status") == "confident":
+        assistant_content = f"\"{guess_obj['title']}\" by {guess_obj['author']}"
+    else:
+        assistant_content = str(guess_obj)
 
-    # Append the assistant's guess to history
-    history.append({"role": "assistant", "content": guess})
-
-    # Update the job
-    update_job(job_id, {
-        'guess': guess,
-        'history': history,
-        'phase': 'guessed'
+    # Append a proper string message
+    history.append({
+      "role": "assistant",
+      "content": assistant_content
     })
 
-    return {'job_id': job_id, 'guess': guess}
+    # Save both the raw object and the updated history
+    update_job(job_id, {
+      "guess":   guess_obj,    # your UI code can still read the status/question
+      "history": history,
+      "phase":   "guessed"
+    })
+
+    return {"job_id": job_id, "guess": guess_obj}
+
 
 
 
