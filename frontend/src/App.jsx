@@ -130,7 +130,7 @@ export default function App() {
   
   return (
     <div className="app-container">
-    <h1 className="app-title">Voice-to-Book</h1>
+    <h1 className="app-title">Academicnator</h1>
     
     <button
     onClick={handleRecordButtonClick}

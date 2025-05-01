@@ -18,9 +18,8 @@ app.add_middleware(
   allow_headers=["*"],
 )
 
-# Directories (ensure these match your Docker volumes)
+# Directories
 UPLOAD_DIR = '/data/audio/uploads' # os.getenv('UPLOAD_DIR', '/data/audio/uploads')
-# Create upload dir if it doesn't exist
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.get("/health")
@@ -106,6 +105,24 @@ async def answer_clarification(job_id: str, file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/download_list/{job_id}")
+async def download_list(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    query = job.get('title') + " " + job.get('author')
+    async_result = download_list.delay(query, job_id)
+
+    update_job(job_id, {
+        'phase': 'downloading_list',
+        'task_id': async_result.id
+    })
+
+    return JSONResponse({
+        'job_id': job_id,
+        'status_url': f"/status/{job_id}"
+    })
 
 @app.post("/continue_pipeline/{job_id}")
 async def continue_pipeline(job_id: str):
@@ -135,7 +152,8 @@ async def get_status(job_id: str):
         'job_id': job_id,
         'phase': job.get('phase', 'unknown'),
         'transcription': job.get('transcription', ''),
-        'guess': job.get('guess', '')
+        'guess': job.get('guess', ''),
+        'list': job.get('list', '')
     }
 
     return JSONResponse(response)

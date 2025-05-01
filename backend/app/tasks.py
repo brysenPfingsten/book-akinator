@@ -101,6 +101,16 @@ def guess_book(self, previous_result: dict) -> dict:
 
     return {"job_id": job_id, "guess": guess_obj}
 
+@celery_app.task(bind=True)
+def download_list(self, query: str, job_id: str):
+    job = get_job(job_id)
+    from app.workers.irc_worker import download_list
+    path = download_list(query, job_id)
+    update_job(job_id, {
+        "phase": "downloaded_list",
+    })
+    return path
+
 
 
 
