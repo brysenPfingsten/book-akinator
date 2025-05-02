@@ -106,10 +106,10 @@ def guess_book(self, previous_result: dict) -> dict:
     return {"job_id": job_id, "guess": guess_obj}
 
 @celery_app.task(bind=True)
-def download_list_task(self, query: str, job_id: str):
+def download_list_task(self, title: str, author: str, job_id: str):
     job = get_job(job_id)
     from app.workers.irc_worker import download_list
-    path = download_list(query, job_id)
+    path = download_list(title, author, job_id)
     print(f"[DEBUG] List downloaded to {path}")
     update_job(job_id, {
         "phase": "downloaded_list",
@@ -117,16 +117,19 @@ def download_list_task(self, query: str, job_id: str):
     })
     return path
 
-
-
-
 @celery_app.task(bind=True)
 def download_book(self, previous_result: dict) -> dict:
     """Fetch the guessed book via IRC."""
     job_id = previous_result.get('job_id')
-    book_info = previous_result.get('book_info')
-    ebook_path = fetch_book_via_irc(book_info, DATA_DIR)
-    return {'job_id': job_id, 'ebook_path': ebook_path}
+    query = previous_result.get('query')
+    from app.workers.irc_worker import download_book
+    path = download_book(query, job_id)
+    print(f"[DEBUG] Book downloaded to {path}")
+    update_job(job_id, {
+        "phase": "downloaded_book",
+        "ebook_path": path
+    })
+    return {'job_id': job_id, 'ebook_path': path}
 
 @celery_app.task(bind=True)
 def convert_book(self, previous_result: dict) -> dict:

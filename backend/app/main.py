@@ -124,6 +124,12 @@ async def download_list(job_id: str):
         'status_url': f"/status/{job_id}"
     })
 
+@app.post("/download_book/{job_id}")
+async def download_book(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
 @app.post("/continue_pipeline/{job_id}")
 async def continue_pipeline(job_id: str):
     job = get_job(job_id)
@@ -153,7 +159,8 @@ async def get_status(job_id: str):
         'phase': job.get('phase', 'unknown'),
         'transcription': job.get('transcription', ''),
         'guess': job.get('guess', ''),
-        'list': job.get('list', '')
+        'list': job.get('list', ''),
+        'ebook_path': job.get('ebook_path', ''),
     }
 
     return JSONResponse(response)
