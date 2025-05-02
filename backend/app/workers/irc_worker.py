@@ -85,11 +85,13 @@ class IRCListDownloader(SimpleIRCClient):
                 target.write(source.read())
 
 def download_list(query, job_id):
+    irc.client.ServerConnection.buffer_class = buffer.LenientDecodingLineBuffer
     client = IRCListDownloader(query, job_id)
+    client.connect(SERVER, PORT, NICK)
     try:
         client.start()
-        return None
     except SystemExit:
+        client.connection.disconnect()
         return os.path.join(client.save_dir, job_id + '.txt')
 
 

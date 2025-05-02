@@ -22,22 +22,33 @@ export default function App() {
     if (!guess.status) { return; }
     switch (guess.status) {
       case "need_clarification":
-      log(`[LLM]: Need Clarification.`);
-      log(`[LLM]: Follow up: ${guess.question}`);
-      setGuess(guess.question);
-      setIsUnsure(true);
-      break;
+        log(`[LLM]: Need Clarification.`);
+        log(`[LLM]: Follow up: ${guess.question}`);
+        setGuess(guess.question);
+        setIsUnsure(true);
+        break;
       case "confident":
-      log(`[LLM]: Confident. "${guess.title}" by ${guess.author}`);
-      setGuess(`"${guess.title}" by ${guess.author}`);
-      setIsUnsure(false);
+        log(`[LLM]: Confident. "${guess.title}" by ${guess.author}`);
+        setGuess(`"${guess.title}" by ${guess.author}`);
+        setIsUnsure(false);
+        download_book();
+        break;
       default:
-      break;
+        break;
     }
   };
 
-  const download_book = (query) => {
-
+  const download_book = async () => {
+    const endpoint = `${import.meta.env.VITE_API_URL}/download_list/${jobId}`
+    const res = await fetch(endpoint, {
+      method: 'POST'
+    });
+    const data = await res.json();
+    console.log(data);
+    const newJobId = (data.job_id || data.jobId || jobId).toLowerCase();
+    setJobId(newJobId);
+    log(`Tracking job: ${newJobId}`);
+    setPullTrigger((n) => n + 1);
   }
   
   // Use custom hook to poll job status
@@ -53,6 +64,12 @@ export default function App() {
       log('Job completed, updating guess');
       setIsProcessing(false);
       process_guess(result);
+    }
+    if (phase === 'downloading_list') {
+      log('[IRC] Fetching download list...')
+    }
+    if (phase === 'downloaded_list') {
+      log('[IRC] Downloaded list.')
     }
     if (phase === 'failed') {
       setIsProcessing(false);
