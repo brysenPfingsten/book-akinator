@@ -6,7 +6,7 @@ from uuid import uuid4
 import os
 
 from app.celeryconfig import celery_app
-from app.tasks import process_audio_job, continue_book_pipeline, download_list_task
+from app.tasks import process_audio_job, continue_book_pipeline, download_list_task, download_book_task
 from app.job_store import *
 
 # FastAPI app
@@ -111,8 +111,7 @@ async def download_list(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    query = job.get('title') + " " + job.get('author')
-    async_result = download_list_task.delay(query, job_id)
+    async_result = download_list_task.delay(job.get('title'), job.get('author'), job_id)
 
     update_job(job_id, {
         'phase': 'downloading_list',
@@ -129,6 +128,18 @@ async def download_book(job_id: str):
     job = get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+
+    async_result = download_book_task.delay(job_id)
+
+    update_job(job_id, {
+        'phase': 'downloading_book',
+        'task_id': async_result.id
+    })
+
+    return JSONResponse({
+        'job_id': job_id,
+        'status_url': f"/status/{job_id}"
+    })
 
 @app.post("/continue_pipeline/{job_id}")
 async def continue_pipeline(job_id: str):

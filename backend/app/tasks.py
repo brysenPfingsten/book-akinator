@@ -7,7 +7,6 @@ import os
 from uuid import uuid4
 from app.workers.stt_worker import transcribe_audio_file
 from app.workers.llm_worker import query_llm_for_book
-from app.workers.irc_worker import fetch_book_via_irc
 from app.workers.convert_worker import extract_text_from_ebook
 from app.workers.tts_worker import synthesize_speech
 from app.job_store import *
@@ -118,10 +117,11 @@ def download_list_task(self, title: str, author: str, job_id: str):
     return path
 
 @celery_app.task(bind=True)
-def download_book(self, previous_result: dict) -> dict:
+def download_book_task(self, job_id: str) -> dict:
     """Fetch the guessed book via IRC."""
-    job_id = previous_result.get('job_id')
-    query = previous_result.get('query')
+    list_path: str = f'/data/books/{job_id}/list.txt'
+    from app.workers.select_worker import parse_and_sort
+    query: str = parse_and_sort(list_path)[0]['original_line']
     from app.workers.irc_worker import download_book
     path = download_book(query, job_id)
     print(f"[DEBUG] Book downloaded to {path}")

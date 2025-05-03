@@ -31,19 +31,32 @@ export default function App() {
         log(`[LLM]: Confident. "${guess.title}" by ${guess.author}`);
         setGuess(`"${guess.title}" by ${guess.author}`);
         setIsUnsure(false);
-        download_book();
+        download_list();
         break;
       default:
         break;
     }
   };
 
-  const download_book = async () => {
-    const endpoint = `${import.meta.env.VITE_API_URL}/download_list/${jobId}`
+  const download_list = async () => {
+    const endpoint = `${import.meta.env.VITE_API_URL}/download_list/${jobId}`;
     const res = await fetch(endpoint, {
       method: 'POST'
     });
     const data = await res.json();
+    console.log(data);
+    const newJobId = (data.job_id || data.jobId || jobId).toLowerCase();
+    setJobId(newJobId);
+    log(`Tracking job: ${newJobId}`);
+    setPullTrigger((n) => n + 1);
+  }
+
+  const download_book = async () => {
+    const endpoint = `${import.meta.env.VITE_API_URL}/download_book/${jobId}`;
+    const res = await fetch(endpoint, {
+      method: 'POST'
+    });
+    const data = await res.json()
     console.log(data);
     const newJobId = (data.job_id || data.jobId || jobId).toLowerCase();
     setJobId(newJobId);
@@ -66,10 +79,17 @@ export default function App() {
       process_guess(result);
     }
     if (phase === 'downloading_list') {
-      log('[IRC] Fetching download list...')
+      log('[IRC] Fetching download list  ...')
     }
     if (phase === 'downloaded_list') {
       log('[IRC] Downloaded list.')
+      download_book();
+    }
+    if (phase === 'downloading_book') {
+      log('[IRC] Downloading book ...')
+    }
+    if (phase === 'downloaded_book') {
+      log('[IRC] Downloaded book.')
     }
     if (phase === 'failed') {
       setIsProcessing(false);

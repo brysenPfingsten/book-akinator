@@ -83,7 +83,8 @@ class IRCXDCCClient(SimpleIRCClient):
         size = int(size)
 
         print(f"[*] Receiving file: {filename} ({size} bytes) from {ip}:{port}")
-        filepath = os.path.join(self.save_dir, filename)
+        filepath = os.path.join(self.save_dir, self.job_id, filename)
+        self.saved_file = filepath
         self.receive_file(ip, port, filepath, size)
 
         if self.is_list_request and filename.endswith(".zip"):
@@ -108,7 +109,7 @@ class IRCXDCCClient(SimpleIRCClient):
 
     def extract_zip(self, zip_path):
         os.makedirs(self.save_dir, exist_ok=True)
-        self.saved_file = os.path.join(self.save_dir, self.job_id + '.txt')
+        self.saved_file = os.path.join(self.save_dir, self.job_id, 'list.txt')
         with zipfile.ZipFile(zip_path, 'r') as zf:
             original_name = zf.namelist()[0]
             with zf.open(original_name) as source, \
@@ -128,7 +129,7 @@ class IRCXDCCClient(SimpleIRCClient):
 def download_list(title: str, author: str, job_id) -> str:
     irc.client.ServerConnection.buffer_class = buffer.LenientDecodingLineBuffer
     query: str = f'@search {title} {author}'
-    client = IRCXDCCClient(query, job_id, 'data/books/lists', True)
+    client = IRCXDCCClient(query, job_id, '/data/books', True)
     client.connect(SERVER, PORT, NICK)
     try:
         client.start()
@@ -139,7 +140,7 @@ def download_list(title: str, author: str, job_id) -> str:
 
 def download_book(query: str, job_id: str) -> str:
     irc.client.ServerConnection.buffer_class = buffer.LenientDecodingLineBuffer
-    client = IRCXDCCClient(query, job_id, 'data/books', False)
+    client = IRCXDCCClient(query, job_id, '/data/books', False)
     client.connect(SERVER, PORT, NICK)
     try:
         client.start()
