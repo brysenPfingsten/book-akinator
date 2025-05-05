@@ -7,7 +7,6 @@ import os
 from uuid import uuid4
 from app.workers.stt_worker import transcribe_audio_file
 from app.workers.llm_worker import query_llm_for_book
-from app.workers.convert_worker import extract_text_from_ebook
 from app.workers.tts_worker import synthesize_speech
 from app.job_store import *
 from fastapi import HTTPException
@@ -29,23 +28,6 @@ def process_audio_job(self, job_id: str, filename: str):
     result = workflow.apply_async()
 
     return {'workflow_id': result.id, 'job_id': job_id}
-
-
-@celery_app.task(bind=True)
-def continue_book_pipeline(self, job_id: str):
-    """
-    Phase 2: After confident guess, download and speak the book.
-    """
-    workflow = chain(
-        download_book.s({'job_id': job_id}),
-        convert_book.s(),
-        speak_text.s()
-    )
-    result = workflow.apply_async()
-
-    return {'workflow_id': result.id, 'job_id': job_id}
-
-
 
 @celery_app.task(bind=True)
 def transcribe_audio(self, job_id: str, filepath: str) -> dict:
@@ -130,14 +112,6 @@ def download_book_task(self, job_id: str) -> dict:
         "ebook_path": path
     })
     return {'job_id': job_id, 'ebook_path': path}
-
-@celery_app.task(bind=True)
-def convert_book(self, previous_result: dict) -> dict:
-    """Convert eBook file to plain text."""
-    job_id = previous_result.get('job_id')
-    ebook_path = previous_result.get('ebook_path')
-    text_path = extract_text_from_ebook(ebook_path, DATA_DIR)
-    return {'job_id': job_id, 'text_path': text_path}
 
 @celery_app.task(bind=True)
 def speak_text(self, previous_result: dict) -> dict:

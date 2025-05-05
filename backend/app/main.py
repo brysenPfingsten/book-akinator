@@ -6,7 +6,7 @@ from uuid import uuid4
 import os
 
 from app.celeryconfig import celery_app
-from app.tasks import process_audio_job, continue_book_pipeline, download_list_task, download_book_task
+from app.tasks import process_audio_job, download_list_task, download_book_task
 from app.job_store import *
 
 # FastAPI app
@@ -140,25 +140,6 @@ async def download_book(job_id: str):
         'job_id': job_id,
         'status_url': f"/status/{job_id}"
     })
-
-@app.post("/continue_pipeline/{job_id}")
-async def continue_pipeline(job_id: str):
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    guess = job.get('guess')
-    if not guess or guess.get('status') != 'confident':
-        raise HTTPException(status_code=400, detail="Job is not ready to continue. No confident guess yet.")
-
-    # Launch Phase 2 pipeline
-    async_result = continue_book_pipeline.delay(job_id)
-
-    # Optional: update job metadata if you want to track second pipeline separately
-    update_job(job_id, {'phase2_workflow_id': async_result.id})
-
-    return {"message": "Pipeline continued", "workflow_id": async_result.id}
-
 @app.get("/status/{job_id}")
 async def get_status(job_id: str):
     job = get_job(job_id)
@@ -175,5 +156,3 @@ async def get_status(job_id: str):
     }
 
     return JSONResponse(response)
-
-
