@@ -10,7 +10,6 @@ SERVER = "irc.irchighway.net"
 PORT = 6667
 CHANNEL = "#ebooks"
 NICK = "EbookSeeker123"
-SEARCH_QUERY = "Frankenstein Mary Shelley"
 
 class IRCXDCCClient(SimpleIRCClient):
     def __init__(self, query: str, job_id: str, save_dir: str, is_list_request: bool):
