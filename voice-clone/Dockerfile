@@ -14,7 +14,7 @@ RUN pip install --upgrade pip \
     && pip install TTS flask
 
 # Create output and voice sample dirs
-RUN mkdir -p /app/output /app/app/voice_samples
+RUN mkdir -p /app/output /app/voice_samples
 
 # Copy server script
 COPY app/server.py /app/server.py
