@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { speakText } from '../audioPlayer';
+import { speakText, stopSpeaking } from '../audioPlayer';
 
 const EbookViewer = ({ jobId }) => {
   const [sections, setSections] = useState([]);
   const [selected, setSelected] = useState(null);
   const [text, setText] = useState('');
+  const [speaking, setSpeaking] = useState(false);
   const basePath = `${import.meta.env.VITE_API_URL}/ebooks/b4e00eb6-367c-4495-8c2a-7cea89de1b8d/parsed`;
 
   useEffect(() => {
@@ -23,8 +24,15 @@ const EbookViewer = ({ jobId }) => {
     }
   }, [selected, basePath]);
 
-  const handleSpeak = () => {
-    speakText(text);
+  const handleSpeak = async () => {
+    if (speaking) {
+      stopSpeaking();
+      setSpeaking(false);
+    } else {
+      setSpeaking(true);
+      await speakText(text);
+      setSpeaking(false);
+    }
   };
 
   return (
@@ -32,8 +40,15 @@ const EbookViewer = ({ jobId }) => {
       <div className="ebook-header">
         <h2>eBook Sections</h2>
         {text && (
-          <button onClick={handleSpeak} className="speak-button">
-            🔊 Speak
+          <button
+            onClick={handleSpeak}
+            className={`speak-button ${speaking ? 'stop' : ''}`}
+            style={{
+              backgroundColor: speaking ? 'red' : '',
+              color: speaking ? 'white' : '',
+            }}
+          >
+            {speaking ? '⏹️ Stop' : '🔊 Speak'}
           </button>
         )}
       </div>
