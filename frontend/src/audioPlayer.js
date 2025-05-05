@@ -3,11 +3,12 @@ let currentSpeakAbort = null;
 export async function speakText(fullText) {
   const endpoint = `${import.meta.env.VITE_API_URL}/speak`;
 
-  // Allow external stop
+  // Setup abort controller
   if (currentSpeakAbort) currentSpeakAbort.abort();
   const abort = { aborted: false, abort: () => (abort.aborted = true) };
   currentSpeakAbort = abort;
 
+  // Step 1: Split text
   const splitRes = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -20,19 +21,27 @@ export async function speakText(fullText) {
   }
 
   const { sentences } = await splitRes.json();
-
+  const buffer = [];
   let i = 0;
-  let nextAudioBlob = await fetchAudioBlob(sentences[i++], endpoint);
-  while (i <= sentences.length && !abort.aborted) {
-    const currentBlob = nextAudioBlob;
-    const nextSentence = sentences[i];
-    const nextAudioPromise = nextSentence
-      ? fetchAudioBlob(nextSentence, endpoint)
-      : Promise.resolve(null);
+
+  // Step 2: Preload initial buffer (up to 3)
+  while (buffer.length < 3 && i < sentences.length) {
+    const blob = await fetchAudioBlob(sentences[i++], endpoint);
+    if (blob) buffer.push(blob);
+  }
+
+  // Step 3: Play while maintaining the 3-blob buffer
+  while (buffer.length > 0 && !abort.aborted) {
+    const currentBlob = buffer.shift();
+
+    // Start fetching the next blob while playing
+    const nextBlobPromise =
+      i < sentences.length ? fetchAudioBlob(sentences[i++], endpoint) : Promise.resolve(null);
 
     await playAudioBlob(currentBlob, abort);
-    nextAudioBlob = await nextAudioPromise;
-    i++;
+
+    const nextBlob = await nextBlobPromise;
+    if (nextBlob) buffer.push(nextBlob);
   }
 }
 

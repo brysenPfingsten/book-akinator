@@ -1,19 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { speakText, stopSpeaking } from '../audioPlayer';
 
-const EbookViewer = ({ jobId }) => {
+const EbookViewer = ({ jobId = 'b4e00eb6-367c-4495-8c2a-7cea89de1b8d'}) => {
   const [sections, setSections] = useState([]);
   const [selected, setSelected] = useState(null);
   const [text, setText] = useState('');
   const [speaking, setSpeaking] = useState(false);
-  const basePath = `${import.meta.env.VITE_API_URL}/ebooks/b4e00eb6-367c-4495-8c2a-7cea89de1b8d/parsed`;
+  const basePath = `${import.meta.env.VITE_API_URL}/ebooks/${jobId}/parsed`;
 
   useEffect(() => {
-    fetch(`${basePath}/index.json`)
-      .then(res => res.json())
-      .then(setSections)
-      .catch(err => console.error('Error loading index.json:', err));
+    if (!jobId) return;
+  
+    let isMounted = true;
+    const pollInterval = 2000; // 2 seconds
+  
+    const checkForIndex = async () => {
+      try {
+        const res = await fetch(`${basePath}/index.json`);
+        if (!res.ok) throw new Error("index.json not ready");
+  
+        const data = await res.json();
+        if (Array.isArray(data) && isMounted) {
+          setSections(data);
+        } else {
+          console.error("Invalid index.json structure:", data);
+        }
+      } catch (err) {
+        setTimeout(checkForIndex, pollInterval); // retry
+      }
+    };
+  
+    checkForIndex();
+  
+    return () => {
+      isMounted = false;
+    };
   }, [jobId]);
+  
 
   useEffect(() => {
     if (selected) {
