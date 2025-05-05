@@ -58,6 +58,16 @@ services:
     depends_on:
       - backend
 
+  voice-clone:
+    build: ./voice-clone
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./voice-clone/app/voice_samples:/app/app/voice_samples
+      - ./voice-clone/output:/app/output
+    restart: unless-stopped
+
+
 volumes:
   redis_data:
   books_data:
