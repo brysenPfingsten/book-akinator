@@ -1,12 +1,25 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from celery.result import AsyncResult
+import subprocess
+import uuid
 from uuid import uuid4
-import os
 
-from app.celeryconfig import celery_app
-from app.tasks import process_audio_job, download_list_task, download_book_task
+import requests
+from fastapi import FastAPI, Response, Request
+from fastapi import UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+import spacy
+from spacy.cli import download
+
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    print("[INFO] Downloading spaCy model: en_core_web_sm")
+    download("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
+
+from starlette.staticfiles import StaticFiles
+from app.tasks import process_audio_job, download_book_task
 from app.job_store import *
 
 # FastAPI app
@@ -21,10 +34,20 @@ app.add_middleware(
 # Directories
 UPLOAD_DIR = '/data/audio/uploads' # os.getenv('UPLOAD_DIR', '/data/audio/uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+BOOKS_DIR = "/data/books"
+if os.path.exists(BOOKS_DIR):
+    app.mount("/ebooks", StaticFiles(directory=BOOKS_DIR), name="ebooks")
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+@app.exception_handler(Exception)
+async def catch_all_exceptions(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"error": str(exc), "detail": "An unexpected error occurred"},
+    )
 
 
 async def save_and_process_audio(file: UploadFile, job_id: str = None, is_clarification: bool = False):
@@ -122,6 +145,47 @@ async def download_book(job_id: str):
         'job_id': job_id,
         'status_url': f"/status/{job_id}"
     })
+
+
+class TTSRequest(BaseModel):
+    text: str
+    split: bool = False
+
+SPEAKER_WAV = "app/voice_samples/your_sample.wav"
+MODEL_NAME = "tts_models/multilingual/multi-dataset/your_tts"
+
+def split_sentences(text: str) -> list[str]:
+    doc = nlp(text)
+    return [sent.text.strip() for sent in doc.sents]
+
+VOICE_CLONE_URL = "http://voice-clone:5002/speak"  # Docker internal hostname
+
+@app.post("/speak")
+async def speak(req: TTSRequest):
+    if not req.text:
+        return JSONResponse(status_code=400, content={"error": "Missing 'text'"})
+
+    if req.split:
+        sentences = split_sentences(req.text)
+        return {"sentences": sentences}
+
+    try:
+        response = requests.post(
+            VOICE_CLONE_URL,
+            json={"text": req.text}
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=502, detail="Voice synthesis failed: " + response.text)
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Error contacting voice service: {str(e)}")
+
+    return Response(
+        content=response.content,
+        media_type="audio/wav",
+        headers={"Content-Disposition": "inline; filename=output.wav"}
+    )
+
+
 @app.get("/status/{job_id}")
 async def get_status(job_id: str):
     job = get_job(job_id)

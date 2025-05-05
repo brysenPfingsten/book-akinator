@@ -49,6 +49,8 @@ export function useJobStatus(jobId, apiUrl, intervalMs = 2000, trigger = 0) {
                     clearInterval(timerRef.current);
                 }
             } catch (err) {
+                setPhase('failed');
+                setResult(err)
                 console.error('Polling error:', err);
                 clearInterval(timerRef.current);
             }

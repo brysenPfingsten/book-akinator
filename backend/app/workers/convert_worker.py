@@ -1,3 +1,4 @@
+import json
 import zipfile
 import rarfile
 import tempfile
@@ -251,6 +252,12 @@ def get_converter(input_path):
         return converters[ext]()
     raise ValueError(f"Unsupported file format: {ext}")
 
+def create_index(dir_path):
+    """Create an index.txt file in the output directory."""
+    files = sorted([f for f in os.listdir(dir_path) if f.endswith('.txt')])
+    with open(os.path.join(dir_path, 'index.json'), 'w') as f:
+        json.dump(files, f)
+
 
 def convert_ebook(input_path, output_dir):
     """
@@ -269,6 +276,7 @@ def convert_ebook(input_path, output_dir):
 
     converter = get_converter(input_path)
     converter.convert(input_path, output_dir)
+    create_index(output_dir)
     print(f"Conversion complete. Files saved to {output_dir}")
 
 # Example usage:
