@@ -42,10 +42,7 @@ export function useJobStatus(jobId, apiUrl, intervalMs = 2000, trigger = 0) {
                 if (data.phase === 'guessed' && data.guess) {
                     setResult(data.guess);
                     clearInterval(timerRef.current);
-                } else if (data.phase === 'downloaded_list') {
-                    setResult(data.list);
-                    clearInterval(timerRef.current); 
-                } else if (data.phase === 'downloaded_book') {
+                } else if (data.phase === 'converted_book') {
                     setResult(data.ebook_path);
                     clearInterval(timerRef.current);  
                 } else if (data.phase === 'failed') {

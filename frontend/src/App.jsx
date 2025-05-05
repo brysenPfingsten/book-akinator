@@ -31,25 +31,12 @@ export default function App() {
         log(`[LLM]: Confident. "${guess.title}" by ${guess.author}`);
         setGuess(`"${guess.title}" by ${guess.author}`);
         setIsUnsure(false);
-        download_list();
+        download_book();
         break;
       default:
         break;
     }
   };
-
-  const download_list = async () => {
-    const endpoint = `${import.meta.env.VITE_API_URL}/download_list/${jobId}`;
-    const res = await fetch(endpoint, {
-      method: 'POST'
-    });
-    const data = await res.json();
-    console.log(data);
-    const newJobId = (data.job_id || data.jobId || jobId).toLowerCase();
-    setJobId(newJobId);
-    log(`Tracking job: ${newJobId}`);
-    setPullTrigger((n) => n + 1);
-  }
 
   const download_book = async () => {
     const endpoint = `${import.meta.env.VITE_API_URL}/download_book/${jobId}`;
@@ -60,42 +47,52 @@ export default function App() {
     console.log(data);
     const newJobId = (data.job_id || data.jobId || jobId).toLowerCase();
     setJobId(newJobId);
-    log(`Tracking job: ${newJobId}`);
     setPullTrigger((n) => n + 1);
   }
   
   // Use custom hook to poll job status
   const { phase, result, transcript } = useJobStatus(jobId, import.meta.env.VITE_API_URL, 2000, pullTrigger);
+
+  useEffect(() => {
+    switch (phase) {
+      case 'guessed':
+        log('Job completed, updating guess');
+        setIsProcessing(false);
+        process_guess(result);
+        break;
+      case 'downloading_list':
+        log('[IRC] Fetching download list  ...')
+        break;
+      case 'downloaded_list':
+        log('[IRC] Downloaded list.')
+        download_book();
+        break;
+      case 'downloading_book':
+        log('[IRC] Downloading book ...')
+        break;
+      case 'downloaded_book':
+        log('[IRC] Downloaded book.')
+        break;
+      case 'converting_book':
+        log('[CONV] Converting book ...')
+        break;
+      case 'converted_book':
+        log('[CONV] Converted book.');
+        break;
+      case 'failed':
+        setIsProcessing(false);
+        log('Job failed');
+        break;
+      default:
+        break;
+    }
+  }, [phase, result]);
   
   useEffect(() => {
-    if (!jobId) return;
-    
     if (transcript) {
       log(`[STT]: ${transcript.trim()}`);
     }
-    if (phase === 'guessed') {
-      log('Job completed, updating guess');
-      setIsProcessing(false);
-      process_guess(result);
-    }
-    if (phase === 'downloading_list') {
-      log('[IRC] Fetching download list  ...')
-    }
-    if (phase === 'downloaded_list') {
-      log('[IRC] Downloaded list.')
-      download_book();
-    }
-    if (phase === 'downloading_book') {
-      log('[IRC] Downloading book ...')
-    }
-    if (phase === 'downloaded_book') {
-      log('[IRC] Downloaded book.')
-    }
-    if (phase === 'failed') {
-      setIsProcessing(false);
-      log('Job failed');
-    }
-  }, [phase, jobId, result, transcript]);
+  }, [transcript]);
   
   const startRecording = async () => {
     try {

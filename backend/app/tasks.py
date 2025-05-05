@@ -86,6 +86,22 @@ def guess_book(self, previous_result: dict) -> dict:
 
     return {"job_id": job_id, "guess": guess_obj}
 
+
+@celery_app.task(bind=True)
+def download_book_task(self, job_id: str):
+    """
+    Phase 1: Transcribe and make first guess.
+    """
+    job = get_job(job_id)
+    workflow = chain(
+        download_list_task.s(job.get('title'), job.get('author'), job_id),
+        actually_download_book.s(),
+        convert_book_task.s()
+    )
+    result = workflow.apply_async()
+
+    return {'workflow_id': result.id, 'job_id': job_id}
+
 @celery_app.task(bind=True)
 def download_list_task(self, title: str, author: str, job_id: str):
     job = get_job(job_id)
@@ -96,12 +112,16 @@ def download_list_task(self, title: str, author: str, job_id: str):
         "phase": "downloaded_list",
         "list": path,
     })
-    return path
+    return {'path': path, 'job_id': job_id}
 
 @celery_app.task(bind=True)
-def download_book_task(self, job_id: str) -> dict:
+def actually_download_book(self, prev: dict) -> dict:
     """Fetch the guessed book via IRC."""
-    list_path: str = f'/data/books/{job_id}/list.txt'
+    job_id: str = prev.get('job_id')
+    list_path: str = prev.get('path')
+    update_job(job_id, {
+        "phase": "downloading_book"
+    })
     from app.workers.select_worker import parse_and_sort
     query: str = parse_and_sort(list_path)[0]['original_line']
     from app.workers.irc_worker import download_book
@@ -112,6 +132,21 @@ def download_book_task(self, job_id: str) -> dict:
         "ebook_path": path
     })
     return {'job_id': job_id, 'ebook_path': path}
+
+@celery_app.task(bind=True)
+def convert_book_task(self, prev: dict):
+    """Convert the downloaded book to txt files"""
+    job_id: str = prev.get('job_id')
+    ebook_path: str = prev.get('ebook_path')
+    update_job(job_id, {
+        "phase": "converting_book"
+    })
+    from app.workers.convert_worker import convert_ebook
+    convert_ebook(ebook_path, f'/data/books/{job_id}/parsed')
+    update_job(job_id, {
+        "phase": "converted_book"
+    })
+    return {'job_id': job_id}
 
 @celery_app.task(bind=True)
 def speak_text(self, previous_result: dict) -> dict:
