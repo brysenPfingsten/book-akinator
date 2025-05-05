@@ -46,8 +46,19 @@ services:
       context: ./frontend
     ports:
       - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
+
+  voice-clone:
+    build: ./voice-clone
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./voice-clone/app/voice_samples:/app/app/voice_samples
+      - ./voice-clone/output:/app/output
+    restart: unless-stopped
 
 volumes:
   redis_data:
